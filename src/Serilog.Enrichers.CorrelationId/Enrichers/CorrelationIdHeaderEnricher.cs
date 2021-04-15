@@ -42,23 +42,29 @@ namespace Serilog.Enrichers
 
         private string GetCorrelationId()
         {
-            var header = string.Empty;
+            string correlationId;
 
-            if (_contextAccessor.HttpContext.Request.Headers.TryGetValue(_headerKey, out var values))
+            if (_contextAccessor.HttpContext.Items["CorrelationId"] != null)
             {
-                header = values.FirstOrDefault();
+                correlationId = _contextAccessor.HttpContext.Items["CorrelationId"].ToString();
+            }
+            else if (_contextAccessor.HttpContext.Request.Headers.TryGetValue(_headerKey, out var values))
+            {
+                correlationId = values.FirstOrDefault();
             }
             else if (_contextAccessor.HttpContext.Response.Headers.TryGetValue(_headerKey, out values))
             {
-                header = values.FirstOrDefault();
+                correlationId = values.FirstOrDefault();
+            }
+            else
+            {
+                correlationId = Guid.NewGuid().ToString();
             }
 
-            var correlationId = string.IsNullOrEmpty(header)
-                                    ? Guid.NewGuid().ToString()
-                                    : header;
+            _contextAccessor.HttpContext.Items["CorrelationId"] = correlationId;
 
 #if NETFULL
-            if(!_contextAccessor.HttpContext.Response.HeadersWritten &&
+            if (!_contextAccessor.HttpContext.Response.HeadersWritten &&
                 !_contextAccessor.HttpContext.Response.Headers.AllKeys.Contains(_headerKey))
 #else
             if (!_contextAccessor.HttpContext.Response.Headers.ContainsKey(_headerKey))
